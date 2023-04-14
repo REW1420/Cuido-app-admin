@@ -9,6 +9,7 @@ import {
   TextInput,
   StyleSheet,
   Button,
+  Alert,
 } from "react-native";
 
 import COLORS from "../config/COLORS";
@@ -24,18 +25,48 @@ import { remove, sortBy } from "lodash";
 import Toast from "react-native-toast-message";
 import * as ImagePicker from "expo-image-picker";
 //firestore
-import { collection, addDoc } from "firebase/firestore";
 import {
-  ref,
-  uploadBytesResumable,
-  getDownloadURL,
-  uploadBytes,
-} from "firebase/storage";
+  collection,
+  addDoc,
+  getDocs,
+  onSnapshot,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
+import { ref, getDownloadURL, uploadBytes } from "firebase/storage";
 import { database, storage } from "../utils/Firebase";
+
+//get documents from firestore
+function useProductData() {
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    const snapshot = onSnapshot(
+      collection(database, "products"),
+      (querySnapshot) => {
+        const products = [];
+        querySnapshot.forEach((doc) => {
+          products.push({
+            id: doc.id,
+            data: doc.data(),
+          });
+        });
+        setData(products);
+      }
+    );
+
+    return () => snapshot();
+  }, []);
+
+  return data;
+}
 
 export default function StoreScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const bottomSheetRef = useRef(null);
+
+  const producData = useProductData();
+  //console.log(cityData)
 
   //form hooks
 
@@ -76,10 +107,15 @@ export default function StoreScreen() {
       quality: 1,
     });
 
-    const source = { uri: result.uri };
+    const source = { uri: result.assets[0].uri };
     console.log(source);
     setImage(source);
     setImageURI(result.assets[0].uri);
+  };
+
+  //image meta data
+  const metadata = {
+    contentType: "image/jpg",
   };
 
   const storageRef = ref(storage, "images/" + productName);
@@ -88,10 +124,20 @@ export default function StoreScreen() {
     const response = await fetch(image.uri);
     const blob = await response.blob();
     const uploadTask = uploadBytes(storageRef, blob, metadata);
+
     getDownloadURL((await uploadTask).ref).then((downloadURL) => {
       setLogoURL(downloadURL);
+
+      addDoc(collection(database, "products"), {
+        productName: productName,
+        logoURL: downloadURL,
+        price: price,
+        description: description,
+        quantity: quantity,
+      });
+      console.log("product added");
+      console.log("url", downloadURL);
     });
-    console.log('image upload')
   };
 
   //firebase funtions
@@ -107,17 +153,27 @@ export default function StoreScreen() {
     console.log("product added");
   };
 
-  const metadata = {
-    contentType: "image/jpg",
+  //clear product data form
+  const clearData = () => {
+    setImageURI(null);
+    setProductName("");
+    setPrice("");
+    setDescription("");
+    setQuantity("");
+    toggleModal();
   };
-
   //post async funtion
 
-  async function postProductData(){
-    await uploadImage();
-    addProductData();
+  async function postProductData() {
+    uploadImage();
 
+    console.log(logoURL);
+
+    toggleModal();
+    clearData();
   }
+
+  //delete alert
 
   return (
     <>
@@ -167,19 +223,68 @@ export default function StoreScreen() {
               onCancel={() => setSearchQuery("")}
             />
           </View>
+        </View>
 
-          <Image
-            source={{
-              uri: "https://firebasestorage.googleapis.com/v0/b/cuido-dabase.appspot.com/o/images%2Ftest4?alt=media&token=e8a36949-ecc9-40de-834b-15614039d24b",
-            }}
-            style={{ width: 200, height: 200 }}
-          />
+        <View>
+          {producData.map((item, i) => (
+            <View key={i} style={styles.productsContainer}>
+              <View>
+                <Image
+                  style={styles.image}
+                  source={{ uri: item.data.logoURL }}
+                />
+                <View style={styles.contentProducts}>
+                  <View style={styles.text}>
+                    <Text style={styles.name}>{item.data.productName}</Text>
+                    <Text style={styles.price}>
+                      ${item.data.price} Cantidad: {item.data.quantity}
+                    </Text>
+                  </View>
+
+                  <View style={{ flexDirection: "row" }}>
+                    <TouchableOpacity
+                      style={styles.icon}
+                      onPress={() => {
+                        Alert.alert(
+                          "¿Esta seguro de eliminar el producto?",
+                          "El documento se eliminara para siempre",
+                          [
+                            {
+                              text: "Cancelar",
+                              onPress: () => console.log("cancelado"),
+                              styles: "cancel",
+                            },
+                            {
+                              text: "Aceptar",
+                              onPress: () => {
+                                if (!item.id) {
+                                  console.log("id nulo");
+                                } else {
+                                  deleteDoc(doc(database, "products", item.id));
+                                  console.log("delete succesfull");
+                                }
+                              },
+                            },
+                          ]
+                        );
+                      }}
+                    >
+                      <Icon name="trash-outline" size={25} color={"red"} />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.icon}>
+                      <Icon name="create-outline" size={25} color={"black"} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </View>
+          ))}
         </View>
 
         <Toast ref={(ref) => Toast.setRef(ref)} />
       </ScrollView>
 
-      <Modal isVisible={isModalVisible}>
+      <Modal isVisible={isModalVisible} onBackdropPress={clearData}>
         <View
           style={{
             backgroundColor: "white",
@@ -254,10 +359,12 @@ export default function StoreScreen() {
                 ) : null}
               </View>
 
-              <TouchableOpacity style={styles.buttom} onPress={()=>{
-                postProductData()
-                
-              }}>
+              <TouchableOpacity
+                style={styles.button}
+                onPress={() => {
+                  postProductData();
+                }}
+              >
                 <Text style={styles.textButtom}>Guardar datos</Text>
               </TouchableOpacity>
             </View>
@@ -351,9 +458,16 @@ const styles = StyleSheet.create({
     paddingTop: 3,
     color: "#666",
   },
-  buttom: {
+  button: {
     alignItems: "center",
     backgroundColor: COLORS.primary_button,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 12,
+  },
+  icon: {
+    alignItems: "center",
+
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 12,
