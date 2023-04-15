@@ -32,8 +32,14 @@ import {
   onSnapshot,
   deleteDoc,
   doc,
+  updateDoc,
 } from "firebase/firestore";
-import { ref, getDownloadURL, uploadBytes } from "firebase/storage";
+import {
+  ref,
+  getDownloadURL,
+  uploadBytes,
+  deleteObject,
+} from "firebase/storage";
 import { database, storage } from "../utils/Firebase";
 
 //get documents from firestore
@@ -66,6 +72,7 @@ export default function StoreScreen() {
   const bottomSheetRef = useRef(null);
 
   const producData = useProductData();
+
   //console.log(cityData)
 
   //form hooks
@@ -76,21 +83,32 @@ export default function StoreScreen() {
   const [description, setDescription] = useState("");
   const [quantity, setQuantity] = useState("");
 
+  //form hooks for the update modal
+
+  const [updateID, setUpdateID] = useState("");
+  const [updateLogoURL, setUpdateLogoURL] = useState("");
+  const [updateProductName, setUpdateProductName] = useState("");
+  const [updatePrice, setUpdatePrice] = useState("");
+  const [updateDescription, setUpdateDescription] = useState("");
+  const [updateQuantity, setUpdateQuantity] = useState("");
+  //hook for delete the image and upload again with the new name
+  const [newImage, setNewImage] = useState("")
+
   //handle text form
   const handleText = (value, setState) => {
     setState(value);
   };
 
-  const snapPoints = ["40%"];
-
-  const handleSnapPress = useCallback((index) => {
-    bottomSheetRef.current?.snapToIndex(index);
-  }, []);
-
   const [isModalVisible, setModalVisible] = useState(false);
+
+  const [isUpdateModalVisible, setIsUpdateModalVisible] = useState(false);
 
   const toggleModal = () => {
     setModalVisible(!isModalVisible);
+  };
+
+  const toggleUpdateModal = () => {
+    setIsUpdateModalVisible(!isUpdateModalVisible);
   };
 
   //hook uri image
@@ -119,7 +137,7 @@ export default function StoreScreen() {
   };
 
   const storageRef = ref(storage, "images/" + productName);
-  //conver to blop
+  //conver to blop and upload image and product data
   const uploadImage = async () => {
     const response = await fetch(image.uri);
     const blob = await response.blob();
@@ -129,6 +147,7 @@ export default function StoreScreen() {
       setLogoURL(downloadURL);
 
       addDoc(collection(database, "products"), {
+        key: lastID,
         productName: productName,
         logoURL: downloadURL,
         price: price,
@@ -140,19 +159,33 @@ export default function StoreScreen() {
     });
   };
 
-  //firebase funtions
+  //conver to blop and update image and product data
 
-  const addProductData = async () => {
-    await addDoc(collection(database, "products"), {
-      productName: productName,
-      logoURL: logoURL,
-      price: price,
-      description: description,
-      quantity: quantity,
+  const storageRefUpdate = ref(storage, "images/" + updateProductName);
+
+  const updateData = async () => {
+
+    
+
+
+    const response = await fetch(updateLogoURL);
+    const blob = await response.blob();
+    const updateTask = uploadBytes(storageRefUpdate, blob, metadata);
+    getDownloadURL((await updateTask).ref).then((updateDownloadURL) => {
+      updateDoc(doc(database, "products", updateID), {
+        productName: updateProductName,
+        logoURL: updateDownloadURL,
+        price: updatePrice,
+        description: updateDescription,
+        quantity: updateQuantity,
+      });
     });
-    console.log("product added");
-  };
 
+    toggleUpdateModal();
+    clearData();
+    console.log("product update");
+  };
+  //firebase funtions
   //clear product data form
   const clearData = () => {
     setImageURI(null);
@@ -160,7 +193,8 @@ export default function StoreScreen() {
     setPrice("");
     setDescription("");
     setQuantity("");
-    toggleModal();
+    setImage(null);
+    
   };
   //post async funtion
 
@@ -169,7 +203,7 @@ export default function StoreScreen() {
 
     console.log(logoURL);
 
-    toggleModal();
+    toggleUpdateModal();
     clearData();
   }
 
@@ -260,8 +294,29 @@ export default function StoreScreen() {
                                 if (!item.id) {
                                   console.log("id nulo");
                                 } else {
-                                  deleteDoc(doc(database, "products", item.id));
+                                  deleteDoc(
+                                    doc(database, "products", item.id)
+                                  ).catch((error) => {
+                                    console.log(
+                                      "Hubo un error al borrar el documento",
+                                      error
+                                    );
+                                  });
                                   console.log("delete succesfull");
+                                  const databaseRef = ref(
+                                    storage,
+                                    "images/" + item.data.productName
+                                  );
+                                  deleteObject(databaseRef)
+                                    .then(() => {
+                                      console.log("image delete");
+                                    })
+                                    .catch((error) => {
+                                      console.log(
+                                        "hubo un error al borrar la imagen",
+                                        error
+                                      );
+                                    });
                                 }
                               },
                             },
@@ -271,7 +326,22 @@ export default function StoreScreen() {
                     >
                       <Icon name="trash-outline" size={25} color={"red"} />
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.icon}>
+
+                    <TouchableOpacity
+                      style={styles.icon}
+                      onPress={() => {
+                        console.log(image)
+                        setUpdateLogoURL(item.data.logoURL)
+                        setUpdateID(item.id);
+                        setUpdateProductName(item.data.productName);
+                        setUpdatePrice(item.data.price);
+                        setUpdateDescription(item.data.description);
+                        setUpdateQuantity(item.data.quantity);
+                        setNewImage(item.data.productName)
+                        toggleUpdateModal();
+                        clearData();
+                      }}
+                    >
                       <Icon name="create-outline" size={25} color={"black"} />
                     </TouchableOpacity>
                   </View>
@@ -366,6 +436,101 @@ export default function StoreScreen() {
                 }}
               >
                 <Text style={styles.textButtom}>Guardar datos</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        isVisible={isUpdateModalVisible}
+        onBackdropPress={toggleUpdateModal}
+      >
+        <View
+          style={{
+            backgroundColor: "white",
+            borderRadius: 10,
+            padding: 20,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <View style={{ flexDirection: "row", margin: 15 }}>
+            <View style={styles.container}>
+              <View
+                style={{
+                  backgroundColor: "#fff",
+                  borderRadius: 15,
+                  marginHorizontal: 25,
+                  marginVertical: 10,
+                  paddingVertical: 15,
+                  borderWidth: 1,
+                  borderColor: "#eee",
+                  shadowColor: "#000000",
+                  shadowOffset: {
+                    width: -7,
+                    height: 7,
+                  },
+                  shadowOpacity: 0.05,
+                  shadowRadius: 3.05,
+                  elevation: 4,
+                  width: 300,
+                }}
+              >
+                <Text style={{ textAlign: "center", color: "black" }}>
+                  Actualizar producto
+                </Text>
+
+                <TextInput
+                  style={{ height: 40, borderColor: "gray", borderWidth: 1 }}
+                  onChangeText={(value) =>
+                    handleText(value, setUpdateProductName)
+                  }
+                  value={updateProductName}
+                  placeholder="Nombre del medicamento"
+                />
+
+                <TextInput
+                  style={{ height: 40, borderColor: "gray", borderWidth: 1 }}
+                  onChangeText={(value) => handleText(value, setUpdatePrice)}
+                  value={updatePrice}
+                  placeholder="Precio"
+                  keyboardType="numeric"
+                />
+
+                <TextInput
+                  style={{ height: 40, borderColor: "gray", borderWidth: 1 }}
+                  onChangeText={(value) => handleText(value, setQuantity)}
+                  value={updateQuantity}
+                  placeholder="Cantidad"
+                  keyboardType="numeric"
+                />
+
+                <TextInput
+                  style={{ height: 40, borderColor: "gray", borderWidth: 1 }}
+                  onChangeText={(value) =>
+                    handleText(value, setUpdateDescription)
+                  }
+                  value={updateDescription}
+                  placeholder="Descripcion"
+                />
+
+                <Button title="Actualizar imagen" onPress={pickImage} />
+
+                <Image
+                  source={{ uri: updateLogoURL }}
+                  style={{ width: 200, height: 200 }}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={styles.button}
+                onPress={() => {
+                  
+                  updateData();
+                }}
+              >
+                <Text style={styles.textButtom}>Actualizar datos</Text>
               </TouchableOpacity>
             </View>
           </View>
