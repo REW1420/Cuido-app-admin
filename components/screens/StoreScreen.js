@@ -92,7 +92,7 @@ export default function StoreScreen() {
   const [updateDescription, setUpdateDescription] = useState("");
   const [updateQuantity, setUpdateQuantity] = useState("");
   //hook for delete the image and upload again with the new name
-  const [newImage, setNewImage] = useState("")
+  const [newImage, setNewImage] = useState("");
 
   //handle text form
   const handleText = (value, setState) => {
@@ -164,10 +164,6 @@ export default function StoreScreen() {
   const storageRefUpdate = ref(storage, "images/" + updateProductName);
 
   const updateData = async () => {
-
-    
-
-
     const response = await fetch(updateLogoURL);
     const blob = await response.blob();
     const updateTask = uploadBytes(storageRefUpdate, blob, metadata);
@@ -194,7 +190,6 @@ export default function StoreScreen() {
     setDescription("");
     setQuantity("");
     setImage(null);
-    
   };
   //post async funtion
 
@@ -330,14 +325,14 @@ export default function StoreScreen() {
                     <TouchableOpacity
                       style={styles.icon}
                       onPress={() => {
-                        console.log(image)
-                        setUpdateLogoURL(item.data.logoURL)
+                        console.log(image);
+                        setUpdateLogoURL(item.data.logoURL);
                         setUpdateID(item.id);
                         setUpdateProductName(item.data.productName);
                         setUpdatePrice(item.data.price);
                         setUpdateDescription(item.data.description);
                         setUpdateQuantity(item.data.quantity);
-                        setNewImage(item.data.productName)
+                        setNewImage(item.data.productName);
                         toggleUpdateModal();
                         clearData();
                       }}
@@ -354,51 +349,29 @@ export default function StoreScreen() {
         <Toast ref={(ref) => Toast.setRef(ref)} />
       </ScrollView>
 
-      <Modal isVisible={isModalVisible} onBackdropPress={clearData}>
-        <View
-          style={{
-            backgroundColor: "white",
-            borderRadius: 10,
-            padding: 20,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
+      <Modal
+        isVisible={isModalVisible}
+        onBackdropPress={() => {
+          clearData();
+          toggleModal();
+        }}
+        onBackButtonPress={toggleModal}
+      >
+        <View style={styles.modalBackdround}>
           <View style={{ flexDirection: "row", margin: 15 }}>
             <View style={styles.container}>
-              <View
-                style={{
-                  backgroundColor: "#fff",
-                  borderRadius: 15,
-                  marginHorizontal: 25,
-                  marginVertical: 10,
-                  paddingVertical: 15,
-                  borderWidth: 1,
-                  borderColor: "#eee",
-                  shadowColor: "#000000",
-                  shadowOffset: {
-                    width: -7,
-                    height: 7,
-                  },
-                  shadowOpacity: 0.05,
-                  shadowRadius: 3.05,
-                  elevation: 4,
-                  width: 300,
-                }}
-              >
-                <Text style={{ textAlign: "center", color: "black" }}>
-                  Agregar nuevo producto
-                </Text>
+              <View style={styles.modalInputContainer}>
+                <Text style={styles.modalHeader}>Agregar nuevo producto</Text>
 
                 <TextInput
-                  style={{ height: 40, borderColor: "gray", borderWidth: 1 }}
+                  style={styles.inputText}
                   onChangeText={(value) => handleText(value, setProductName)}
                   value={productName}
                   placeholder="Nombre del medicamento"
                 />
 
                 <TextInput
-                  style={{ height: 40, borderColor: "gray", borderWidth: 1 }}
+                  style={styles.inputText}
                   onChangeText={(value) => handleText(value, setPrice)}
                   value={price}
                   placeholder="Precio"
@@ -406,7 +379,7 @@ export default function StoreScreen() {
                 />
 
                 <TextInput
-                  style={{ height: 40, borderColor: "gray", borderWidth: 1 }}
+                  style={styles.inputText}
                   onChangeText={(value) => handleText(value, setQuantity)}
                   value={quantity}
                   placeholder="Cantidad"
@@ -414,21 +387,29 @@ export default function StoreScreen() {
                 />
 
                 <TextInput
-                  style={{ height: 40, borderColor: "gray", borderWidth: 1 }}
+                  style={styles.inputText}
                   onChangeText={(value) => handleText(value, setDescription)}
                   value={description}
                   placeholder="Descripcion"
                 />
 
-                <Button title="agregar imagen" onPress={pickImage} />
+                <TouchableOpacity
+                  style={styles.buttonImagePicker}
+                  onPress={() => {
+                    pickImage();
+                  }}
+                >
+                  <Text style={styles.textButtom}>Agregar imagen</Text>
+                </TouchableOpacity>
+              </View>
+              <View>
                 {imageURI ? (
                   <Image
                     source={{ uri: imageURI }}
-                    style={{ width: 200, height: 200 }}
+                    style={styles.imagePicked}
                   />
                 ) : null}
               </View>
-
               <TouchableOpacity
                 style={styles.button}
                 onPress={() => {
@@ -445,44 +426,16 @@ export default function StoreScreen() {
       <Modal
         isVisible={isUpdateModalVisible}
         onBackdropPress={toggleUpdateModal}
+        onBackButtonPress={toggleUpdateModal}
       >
-        <View
-          style={{
-            backgroundColor: "white",
-            borderRadius: 10,
-            padding: 20,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
+        <View style={styles.modalBackdround}>
           <View style={{ flexDirection: "row", margin: 15 }}>
             <View style={styles.container}>
-              <View
-                style={{
-                  backgroundColor: "#fff",
-                  borderRadius: 15,
-                  marginHorizontal: 25,
-                  marginVertical: 10,
-                  paddingVertical: 15,
-                  borderWidth: 1,
-                  borderColor: "#eee",
-                  shadowColor: "#000000",
-                  shadowOffset: {
-                    width: -7,
-                    height: 7,
-                  },
-                  shadowOpacity: 0.05,
-                  shadowRadius: 3.05,
-                  elevation: 4,
-                  width: 300,
-                }}
-              >
-                <Text style={{ textAlign: "center", color: "black" }}>
-                  Actualizar producto
-                </Text>
+              <View style={styles.modalInputContainer}>
+                <Text style={styles.modalHeader}>Actualizar producto</Text>
 
                 <TextInput
-                  style={{ height: 40, borderColor: "gray", borderWidth: 1 }}
+                  style={styles.inputText}
                   onChangeText={(value) =>
                     handleText(value, setUpdateProductName)
                   }
@@ -491,7 +444,7 @@ export default function StoreScreen() {
                 />
 
                 <TextInput
-                  style={{ height: 40, borderColor: "gray", borderWidth: 1 }}
+                  style={styles.inputText}
                   onChangeText={(value) => handleText(value, setUpdatePrice)}
                   value={updatePrice}
                   placeholder="Precio"
@@ -499,7 +452,7 @@ export default function StoreScreen() {
                 />
 
                 <TextInput
-                  style={{ height: 40, borderColor: "gray", borderWidth: 1 }}
+                  style={styles.inputText}
                   onChangeText={(value) => handleText(value, setQuantity)}
                   value={updateQuantity}
                   placeholder="Cantidad"
@@ -507,7 +460,7 @@ export default function StoreScreen() {
                 />
 
                 <TextInput
-                  style={{ height: 40, borderColor: "gray", borderWidth: 1 }}
+                  style={styles.inputText}
                   onChangeText={(value) =>
                     handleText(value, setUpdateDescription)
                   }
@@ -515,18 +468,17 @@ export default function StoreScreen() {
                   placeholder="Descripcion"
                 />
 
-                <Button title="Actualizar imagen" onPress={pickImage} />
-
-                <Image
-                  source={{ uri: updateLogoURL }}
-                  style={{ width: 200, height: 200 }}
-                />
+                <View style={styles.imagePcikedContainer}>
+                  <Image
+                    source={{ uri: updateLogoURL }}
+                    style={styles.imagePicked}
+                  />
+                </View>
               </View>
 
               <TouchableOpacity
                 style={styles.button}
                 onPress={() => {
-                  
                   updateData();
                 }}
               >
@@ -540,6 +492,41 @@ export default function StoreScreen() {
   );
 }
 const styles = StyleSheet.create({
+  imagePcikedContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+    margin: 10,
+  },
+  imagePicked: { width: 200, height: 200 },
+
+  buttonImagePicker: {
+    alignItems: "center",
+    backgroundColor: COLORS.primary_button,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 12,
+  },
+  modalHeader: {
+    textAlign: "center",
+    color: "black",
+    fontWeight: "bold",
+    fontSize: 25,
+    marginBottom: 20,
+  },
+  modalInputContainer: {
+    marginHorizontal: 25,
+    marginVertical: 10,
+    paddingVertical: 15,
+    width: 300,
+    justifyContent: "center",
+  },
+  modalBackdround: {
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   secondary_backgroud: {
     backgroundColor: COLORS.secondary_backgroud,
     width: "100%",
@@ -629,6 +616,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 12,
+    margin: 10,
   },
   icon: {
     alignItems: "center",
@@ -665,5 +653,17 @@ const styles = StyleSheet.create({
     elevation: 4,
     height: 60,
     width: 300,
+  },
+  inputText: {
+    backgroundColor: COLORS.input_color,
+    padding: 15,
+    margin: 10,
+    borderRadius: 50,
+    borderWidth: 1.5,
+    width: "80%",
+    color: COLORS.input_text,
+    textAlign: "center",
+    borderColor: COLORS.input_color,
+    alignSelf: "center",
   },
 });

@@ -121,7 +121,7 @@ import {
   
            
           </View>
-          <Toast ref={(ref) => Toast.setRef(ref)} />
+          <Toast ref={Toast.setRef} />
         </ScrollView>
       </>
     );
