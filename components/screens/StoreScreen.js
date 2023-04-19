@@ -24,22 +24,25 @@ import Modal from "react-native-modal";
 import { remove, sortBy } from "lodash";
 import Toast from "react-native-toast-message";
 import * as ImagePicker from "expo-image-picker";
-//firestore
+//for firestore usage
 import {
   collection,
   addDoc,
-  getDocs,
   onSnapshot,
   deleteDoc,
   doc,
   updateDoc,
 } from "firebase/firestore";
+
+//for storage usage
 import {
   ref,
   getDownloadURL,
   uploadBytes,
   deleteObject,
 } from "firebase/storage";
+
+//firebase instances
 import { database, storage } from "../utils/Firebase";
 
 //get documents from firestore
@@ -71,6 +74,7 @@ export default function StoreScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const bottomSheetRef = useRef(null);
 
+  //use of the data fetched
   const producData = useProductData();
 
   //console.log(cityData)
