@@ -192,10 +192,9 @@ export default function ContactsScreen({ navigation }) {
   //update the contact
   const updateData = async () => {
     updateDoc(doc(database, firestoreName, updateID), {
-      
       contactName: updateName,
       //logoURL: downloadURL,
-      phoneNumer:updatePhoneNumer,
+      phoneNumer: updatePhoneNumer,
       schedule: updateSchedule,
       services: updateServices,
     });

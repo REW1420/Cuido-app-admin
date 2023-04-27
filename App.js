@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { NavigationContainer } from "@react-navigation/native";
 
-
+import DeliveryNav from './components/navigation/DeliveryNav'
 import SplashScreen from './components/screens/SplashScreen';
 import LoginNav from './components/navigation/LoginNavigation';
 
@@ -36,7 +36,7 @@ export default function App() {
      {
 
       appIsReady ? <LoginNav/> : <SplashScreen/>
-
+      
      }
       
      

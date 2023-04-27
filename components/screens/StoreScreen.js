@@ -142,7 +142,7 @@ export default function StoreScreen() {
 
   const storageRef = ref(storage, "images/" + productName);
   //conver to blop and upload image and product data
-  const uploadImage = async () => {
+  const uploadData = async () => {
     const response = await fetch(image.uri);
     const blob = await response.blob();
     const uploadTask = uploadBytes(storageRef, blob, metadata);
@@ -151,7 +151,6 @@ export default function StoreScreen() {
       setLogoURL(downloadURL);
 
       addDoc(collection(database, "products"), {
-        key: lastID,
         productName: productName,
         logoURL: downloadURL,
         price: price,
@@ -198,11 +197,11 @@ export default function StoreScreen() {
   //post async funtion
 
   async function postProductData() {
-    uploadImage();
+    uploadData();
 
     console.log(logoURL);
 
-    toggleUpdateModal();
+    toggleModal();
     clearData();
   }
 

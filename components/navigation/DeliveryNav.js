@@ -1,28 +1,26 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import ProfileScreen from '../screens/ProfileScreen'
-import StoreScreen from '../screens/StoreScreen'
-import ContactScreen from '../screens/ContactScreen'
+import { NavigationContainer } from "@react-navigation/native";
+import NewOrders from "../screens/for delivery/NewOrders";
+import CompleteOrders from "../screens/for delivery/CompleteOrders";
 import Icon from "react-native-vector-icons/Ionicons";
 
 export default function MainNav() {
   const TabBar = createBottomTabNavigator();
 
   return (
+    <NavigationContainer>
     <TabBar.Navigator
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
 
           switch (route.name) {
-            case "Profile":
-              iconName = focused ? "person" : "person-outline";
+            case "new-orders":
+              iconName = focused ? "bag-add" : "bag-add-outline";
               break;
-            case "Store":
-              iconName = focused ? "cart" : "cart-outline";
-              break;
-            case "Contacts":
-              iconName = focused ? "call" : "call-outline";
+            case "old-orders":
+              iconName = focused ? "bag-check" : "bag-check-outline";
               break;
           }
           size = focused ? 30 : 25;
@@ -34,9 +32,9 @@ export default function MainNav() {
         tabBarShowLabel: false,
       })}
     >
-      <TabBar.Screen name="Store" component={StoreScreen} />
-      <TabBar.Screen name="Contacts" component={ContactScreen} />
-      <TabBar.Screen name="Profile" component={ProfileScreen} />
+      <TabBar.Screen name="new-orders" component={NewOrders} />
+      <TabBar.Screen name="old-orders" component={CompleteOrders} />
     </TabBar.Navigator>
+    </NavigationContainer>
   );
 }
