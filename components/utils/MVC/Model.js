@@ -21,7 +21,7 @@ export default class Order {
   // Método para obtener una lista de pedidos por user_id
   async getOrdersFiltered(user_id) {
     const response = await fetch(
-      `https://cuido-middleware.000webhostapp.com/api/orders/code/${user_id}`
+      `https://cuido-middleware.000webhostapp.com/api/orders/where/${user_id}`
     );
     const orders = await response.json();
     console.log(orders);

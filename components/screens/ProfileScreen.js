@@ -23,7 +23,7 @@ import { auth } from "../utils/Firebase";
 
 const userModel = new UserModel();
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
   const [isModalCrudVisible, setIsModalCrudVisible] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isModalUserVisible, setIsModalUserVisible] = useState(false);
@@ -44,10 +44,12 @@ export default function ProfileScreen() {
   };
   const toggleModal = () => {
     setIsModalVisible(!isModalVisible);
+    clearData();
   };
 
   const toggleModalUser = () => {
     setIsModalUserVisible(!isModalUserVisible);
+    clearData();
   };
 
   const handleNewUserCrud = async () => {
@@ -65,6 +67,36 @@ export default function ProfileScreen() {
 
         userModel.createUser(userData);
         toggleCrudModal();
+      })
+      .catch((error) => {
+        console.log(error.code);
+        console.log(error.message);
+      });
+  };
+
+  const clearData = () => {
+    setEmail("");
+    setName("");
+    setLastName("");
+    setPhoneNumber(0);
+    setPassword("");
+  };
+
+  const handleNewUserDeliverer = async () => {
+    await createUserWithEmailAndPassword(auth, email, password)
+      .then((userCredential) => {
+        const userData = {
+          user_id: userCredential.user.uid,
+          first_name: name,
+          second_name: lastName,
+          email: email,
+          phone_number: phoneNumber,
+          password: password,
+          role: "deliverer",
+        };
+
+        userModel.createUser(userData);
+        toggleModal();
       })
       .catch((error) => {
         console.log(error.code);
@@ -120,6 +152,7 @@ export default function ProfileScreen() {
 
           <View style={{ flex: 1 }}>
             <TouchableOpacity
+              onPress={()=>navigation.navigate("login")}
               style={{
                 position: "absolute",
                 right: 16,
@@ -155,7 +188,7 @@ export default function ProfileScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.button}
-              onPress={() => handleGetUser(crud)}
+              onPress={() => handleGetUser("deliverer")}
             >
               <Text style={styles.button_text}>Ver usuario Repartidor</Text>
             </TouchableOpacity>
@@ -243,19 +276,43 @@ export default function ProfileScreen() {
             <View style={styles.container}>
               <Text style={styles.modalHeader}>Crear usuario Repartidor</Text>
 
-              <TextInput style={styles.inputText} placeholder="Nombre " />
-              <TextInput style={styles.inputText} placeholder="Apellido " />
+              <TextInput
+                style={styles.inputText}
+                placeholder="Nombre "
+                onChangeText={(value) => handleText(value, setName)}
+                value={name}
+              />
+              <TextInput
+                style={styles.inputText}
+                placeholder="Apellido "
+                onChangeText={(value) => handleText(value, setLastName)}
+                value={lastName}
+              />
 
               <TextInput
                 style={styles.inputText}
                 placeholder="Numero de telefono"
                 keyboardType="numeric"
+                onChangeText={(value) => handleText(value, setPhoneNumber)}
+                value={phoneNumber}
               />
 
-              <TextInput style={styles.inputText} placeholder="Correo" />
-              <TextInput style={styles.inputText} placeholder="Contraseña" />
-              <TextInput style={styles.inputText} placeholder="Descripcion" />
-              <TouchableOpacity style={styles.buttom}>
+              <TextInput
+                style={styles.inputText}
+                placeholder="Correo"
+                onChangeText={(value) => handleText(value, setEmail)}
+                value={email}
+              />
+              <TextInput
+                style={styles.inputText}
+                placeholder="Contraseña"
+                onChangeText={(value) => handleText(value, setPassword)}
+                value={password}
+              />
+              <TouchableOpacity
+                style={styles.buttom}
+                onPress={handleNewUserDeliverer}
+              >
                 <Text style={styles.button_text}>Crear usuario</Text>
               </TouchableOpacity>
             </View>
@@ -302,9 +359,7 @@ export default function ProfileScreen() {
                         alignItems: "center",
                         borderRadius: 20,
                       }}
-                      onPress={() =>
-                        showDeleteAlet(item.first_name, item.id)
-                      }
+                      onPress={() => showDeleteAlet(item.first_name, item.id)}
                     >
                       <Icon
                         name="trash-bin-outline"

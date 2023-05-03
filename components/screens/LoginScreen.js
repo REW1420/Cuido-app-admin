@@ -9,20 +9,30 @@ import {
   TextInput,
   StyleSheet,
   Button,
+  Pressable,
 } from "react-native";
 import COLORS from "../config/COLORS";
 import SPACING from "../config/SPACING";
 import Toast from "react-native-toast-message";
 import React, { useState } from "react";
 import { Dimensions } from "react-native";
-
+import { auth } from "../utils/Firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import Icon from "react-native-vector-icons/Ionicons";
+import UserModel from "../utils/MVC/UserModel";
+import global from "../utils/global";
+import { useTogglePasswordVisibility } from "../utils/useTogglePasswordVisibility";
+const userModel = new UserModel();
 
 const { width, height } = Dimensions.get("screen");
 
 export default function LoginScreen({ navigation }) {
   const [user, setUser] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState([]);
+
+  const { passwordVisibility, rightIcon, handlePasswordVisibility } =
+    useTogglePasswordVisibility();
 
   const showToastError = () => {
     Toast.show({
@@ -34,16 +44,67 @@ export default function LoginScreen({ navigation }) {
     });
   };
 
-  const showToastInvalidCredentiasls = () => {
+  const showLoginError = (message) => {
     Toast.show({
       type: "error",
       text1: "Error",
-      text2: "Credenciales incorrectas",
-      visibilityTime: 3000,
+      text2: message,
+      visibilityTime: 2000,
       position: "top",
     });
   };
 
+  const handleGetUserRole = async () => {
+    await userModel
+      .getUserRoleByEmail(user)
+      .then((data) => {
+        const role = data.role;
+        switch (role) {
+          case "crud":
+            console.log("is crud");
+            signInWithEmailAndPassword(auth, user, password)
+              .then((userCredential) => {
+                global.user_id = userCredential.user.uid;
+                console.log("user id", global.user_id);
+                navigation.navigate("MainNav");
+              })
+              .catch((e) => {
+                console.log(e.code);
+                console.log(e.message);
+                if (e.code === "auth/wrong-password") {
+                  showLoginError("Contraseña incorrecta");
+                }
+              });
+            break;
+          case "deliverer":
+            console.log("is deliverer");
+            signInWithEmailAndPassword(auth, user, password)
+              .then((userCredential) => {
+                global.user_id = userCredential.user.uid;
+                console.log("user id", global.user_id);
+                navigation.navigate("delivery-nav");
+              })
+              .catch((e) => {
+                console.log(e.code);
+                console.log(e.message);
+                if (e.code === "auth/wrong-password") {
+                  showLoginError("Contraseña incorrecta");
+                }
+              });
+            break;
+          default:
+            console.log("none");
+            showLoginError("Correo no registrado");
+        }
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  };
+
+  const handleText = (value, setState) => {
+    setState(value);
+  };
   return (
     <>
       <ScrollView style={styles.initB}>
@@ -77,9 +138,8 @@ export default function LoginScreen({ navigation }) {
                 style={styles.inputTxt}
                 placeholder="ejemplo@dominio.com"
                 placeholderTextColor={COLORS.input_text}
-                onChangeText={(text) => {
-                  setUser(text);
-                }}
+                onChangeText={(value) => handleText(value, setUser)}
+                value={user}
               />
             </View>
           </View>
@@ -98,7 +158,13 @@ export default function LoginScreen({ navigation }) {
                 onChangeText={(text) => {
                   setPassword(text);
                 }}
+                autoCapitalize="none"
+                autoCorrect={false}
+                secureTextEntry={passwordVisibility}
               />
+              <Pressable onPress={handlePasswordVisibility}>
+                <Icon name={rightIcon} size={22} color="#232323" />
+              </Pressable>
             </View>
           </View>
 
@@ -107,17 +173,10 @@ export default function LoginScreen({ navigation }) {
               style={styles.button}
               onPress={() => {
                 if (user !== "" && password !== "") {
-                  if (user === "a" && password === "a") {
-                    navigation.navigate("delivery-nav");
-                  } else {
-                    showToastInvalidCredentiasls();
-                  }
-                  navigation.navigate("MainNav");
+                  handleGetUserRole();
                 } else {
                   showToastError();
                 }
-
-               
               }}
             >
               <Text style={styles.button_text}>Iniciar sesión</Text>

@@ -92,7 +92,7 @@ export default function StoreScreen() {
   const [updateID, setUpdateID] = useState("");
   const [updateLogoURL, setUpdateLogoURL] = useState("");
   const [updateProductName, setUpdateProductName] = useState("");
-  const [updatePrice, setUpdatePrice] = useState("");
+  const [updatePrice, setUpdatePrice] = useState(0);
   const [updateDescription, setUpdateDescription] = useState("");
   const [updateQuantity, setUpdateQuantity] = useState("");
   //hook for delete the image and upload again with the new name
@@ -328,11 +328,13 @@ export default function StoreScreen() {
                     <TouchableOpacity
                       style={styles.icon}
                       onPress={() => {
-                        console.log(image);
+                        console.log(item);
+
                         setUpdateLogoURL(item.data.logoURL);
                         setUpdateID(item.id);
                         setUpdateProductName(item.data.productName);
                         setUpdatePrice(item.data.price);
+                        console.log(updatePrice)
                         setUpdateDescription(item.data.description);
                         setUpdateQuantity(item.data.quantity);
                         setNewImage(item.data.productName);
@@ -449,14 +451,14 @@ export default function StoreScreen() {
                 <TextInput
                   style={styles.inputText}
                   onChangeText={(value) => handleText(value, setUpdatePrice)}
-                  value={updatePrice}
+                  value={"$"+updatePrice}
                   placeholder="Precio"
                   keyboardType="numeric"
                 />
 
                 <TextInput
                   style={styles.inputText}
-                  onChangeText={(value) => handleText(value, setQuantity)}
+                  onChangeText={(value) => handleText(value, setUpdateQuantity)}
                   value={updateQuantity}
                   placeholder="Cantidad"
                   keyboardType="numeric"
@@ -471,12 +473,7 @@ export default function StoreScreen() {
                   placeholder="Descripcion"
                 />
 
-                <View style={styles.imagePcikedContainer}>
-                  <Image
-                    source={{ uri: updateLogoURL }}
-                    style={styles.imagePicked}
-                  />
-                </View>
+              
               </View>
 
               <TouchableOpacity

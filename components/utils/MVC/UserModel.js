@@ -30,10 +30,19 @@ export default class UserModel {
     const response = await fetch(
       `https://cuido-middleware.000webhostapp.com/api/users/${user_id}`,
       {
-        method: 'DELETE'
+        method: "DELETE",
       }
     );
-    const res = response.json
-    console.log(res)
+    const res = response.json;
+    console.log(res);
+  }
+
+  async getUserRoleByEmail(email) {
+    const response = await fetch(
+      `https://cuido-middleware.000webhostapp.com/api/users/user-role/${email}`
+    );
+    const role = await response.json();
+    console.log(role);
+    return role;
   }
 }

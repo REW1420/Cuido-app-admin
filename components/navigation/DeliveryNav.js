@@ -9,7 +9,7 @@ export default function MainNav() {
   const TabBar = createBottomTabNavigator();
 
   return (
-    <NavigationContainer>
+    
     <TabBar.Navigator
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
@@ -17,10 +17,10 @@ export default function MainNav() {
 
           switch (route.name) {
             case "new-orders":
-              iconName = focused ? "bag-add" : "bag-add-outline";
+              iconName = focused ? "albums" : "albums-outline";
               break;
             case "old-orders":
-              iconName = focused ? "bag-check" : "bag-check-outline";
+              iconName = focused ? "lock-closed" : "lock-closed-outline";
               break;
           }
           size = focused ? 30 : 25;
@@ -35,6 +35,6 @@ export default function MainNav() {
       <TabBar.Screen name="new-orders" component={NewOrders} />
       <TabBar.Screen name="old-orders" component={CompleteOrders} />
     </TabBar.Navigator>
-    </NavigationContainer>
+    
   );
 }

@@ -8,8 +8,11 @@ import {
   ImageBackground,
   TextInput,
   StyleSheet,
+  Pressable,
   Button,
   Alert,
+  Dimensions,
+  Linking,
 } from "react-native";
 
 import COLORS from "../../config/COLORS";
@@ -23,8 +26,12 @@ import Modal from "react-native-modal";
 import { remove, sortBy } from "lodash";
 import Toast from "react-native-toast-message";
 import * as ImagePicker from "expo-image-picker";
+import * as Location from "expo-location";
 import Order from "../../utils/MVC/Model";
+import global from "../../utils/global";
+import MapView, { Marker } from "react-native-maps";
 
+const height = Dimensions.get("screen").height;
 //intance the model to create an object
 const orderModel = new Order();
 
@@ -34,7 +41,9 @@ function useNewOrderData() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const ordersResponse = await orderModel.getOrdersFiltered(1);
+        const ordersResponse = await orderModel.getOrdersFiltered(
+          global.user_id
+        );
         setData(ordersResponse);
       } catch (error) {
         console.error(error);
@@ -48,11 +57,56 @@ function useNewOrderData() {
 
   return data;
 }
-export default function NewOrders() {
-  //use data order
+export default function NewOrders({ navigation }) {
+  //order data
+  const [comment, setComment] = useState("");
+  const [location_lat, setLocation_lat] = useState(0);
+  const [location_long, setLocation_long] = useState(0);
+  const [totalPrice, setTotalPrice] = useState(0);
+  const [phoneNumber, setPhoneNumber] = useState(0);
+  const [products, setProducts] = useState([]);
+  const [orderID, setOrderID] = useState("");
+  const [currentLocation, setCurrentLocation] = useState([]);
+  const [isPaid, setIsPaid] = useState(false);
+  const [isDelivered, setIsDelivered] = useState(false);
+  const [clienteName, setClienteName] = useState("");
 
+  //modal hooks boolean
+  const [isModalVisible, seetIsModalVisible] = useState(false);
+  const [isModalUpdateVisible, setIsModalUpdateVisible] = useState(false);
+
+  const toggleModalUpdate = () => {
+    setIsModalUpdateVisible(!isModalUpdateVisible);
+  };
+  const toggleModal = () => {
+    seetIsModalVisible(!isModalVisible);
+  };
+  const callClient = () => {
+    Linking.openURL(`tel:${phoneNumber}`);
+  };
   const orderData = useNewOrderData();
   console.log(orderData);
+
+  useEffect(() => {
+    async function getLocation() {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        return;
+      } else {
+        const { coords } = await Location.getCurrentPositionAsync();
+        setCurrentLocation(coords);
+        console.log(currentLocation);
+      }
+    }
+    getLocation();
+  }, []);
+
+  const showCurrentRegion = {
+    latitude: currentLocation.latitude,
+    longitude: currentLocation.longitude,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  };
   return (
     <>
       <ScrollView style={{ backgroundColor: COLORS.primary_backgroud }}>
@@ -62,6 +116,22 @@ export default function NewOrders() {
               style={{ width: 150, height: 50 }}
               source={require("../../assets/CuidoLogoTop.png")}
             />
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <TouchableOpacity
+              onPress={() => {
+                navigation.navigate("login");
+              }}
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "flex-end",
+                margin: 15,
+              }}
+            >
+              <Icon name="log-out-outline" size={35} color={"red"} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -87,6 +157,18 @@ export default function NewOrders() {
                     backgroundColor: COLORS.secondary_backgroud,
                     margin: 5,
                   }}
+                  onPress={() => {
+                    setComment(item.comments);
+                    setIsDelivered(item.delivered);
+                    setTotalPrice(item.total_price);
+                    setPhoneNumber(item.user_phone_number);
+                    setProducts(item.products);
+                    setOrderID(item.id);
+                    setLocation_lat(item.location_lat);
+                    setLocation_long(item.location_long);
+                    setClienteName(item.client_name);
+                    toggleModal();
+                  }}
                 >
                   <ListItem.Content>
                     <ListItem.Title
@@ -96,8 +178,9 @@ export default function NewOrders() {
                           : styles.textValid
                       }
                     >
-                      No entregado {item.order_id} 
+                      No entregado
                     </ListItem.Title>
+                    <ListItem.Subtitle>Pedido ID : {item.id}</ListItem.Subtitle>
                   </ListItem.Content>
                   <ListItem.Chevron />
                 </ListItem>
@@ -106,10 +189,189 @@ export default function NewOrders() {
           })}
         </View>
       </ScrollView>
+
+      <Modal
+        isVisible={isModalVisible}
+        onBackButtonPress={toggleModal}
+        onBackdropPress={toggleModal}
+        
+      >
+        <ScrollView  >
+          <View
+            style={{
+              backgroundColor: "white",
+              borderRadius: 10,
+              padding: 20,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={styles.modalHeader}>Datos del pedido: {orderID}</Text>
+            <View style={{ margin: 10 }}>
+              <Text>Nombre del cliente: {clienteName}</Text>
+            </View>
+            <View style={styles.cardItems}>
+              <View
+                style={{
+                  flex: 1,
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  marginHorizontal: 20,
+                }}
+              >
+                <Text style={{ margin: 5, fontWeight: "bold" }}>Producto</Text>
+                <Text style={{ margin: 5, fontWeight: "bold" }}>Cantidad</Text>
+                <Text style={{ margin: 5, fontWeight: "bold" }}>Precio </Text>
+              </View>
+            </View>
+            {products.map((item, i) => (
+              <View style={styles.cardItems}>
+                <View
+                  style={{
+                    flex: 1,
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    marginHorizontal: 20,
+                  }}
+                >
+                  <Text style={{ margin: 5 }}>{item.name}</Text>
+                  <Text style={{ margin: 5 }}>{item.quantity}</Text>
+                  <Text style={{ margin: 5 }}>${item.totalPrice}</Text>
+                </View>
+              </View>
+            ))}
+            <View style={styles.cardItems}>
+              <View
+                style={{
+                  flex: 1,
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  marginHorizontal: 20,
+                }}
+              >
+                <Text style={{ margin: 5, fontWeight: "bold" }}>
+                  Total a pagar:
+                </Text>
+                <Text style={{ margin: 5, fontWeight: "bold", color: "green" }}>
+                  ${totalPrice}
+                </Text>
+              </View>
+            </View>
+
+            <View style={{ flexDirection: "row", margin: 10 }}>
+              <Text style={{ fontWeight: "bold", margin: 10, fontSize: 25 }}>
+                Contactar cliente
+              </Text>
+              <Pressable onPress={callClient} style={{ margin: 5 }}>
+                <Icon name="call-outline" size={30} color="#232323" />
+              </Pressable>
+            </View>
+            <View style={{}}>
+              <TouchableOpacity style={styles.button} onPress={toggleModal}>
+                <Text style={styles.button_text}>Marcar como pagado</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.button} onPress={toggleModal}>
+                <Text style={styles.button_text}>Marcar como entregado</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ flex: 1, margin: 10 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  margin: 20,
+                }}
+              >
+                <TouchableOpacity
+                  style={styles.button}
+                  onPress={toggleModalUpdate}
+                >
+                  <Text style={styles.button_text}>
+                    Ver ubicacion de entrega
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.button} onPress={toggleModal}>
+                  <Text style={styles.button_text}>Cancelar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </ScrollView>
+      </Modal>
+      <Modal
+        isVisible={isModalUpdateVisible}
+        onBackdropPress={toggleModalUpdate}
+        onBackButtonPress={toggleModalUpdate}
+        
+        
+      >
+        <ScrollView  >
+          <View
+            style={{
+              backgroundColor: "white",
+              borderRadius: 10,
+              padding: 20,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <View style={{ flexDirection: "row", margin: 5 }}>
+              <Text style={styles.modalHeader}>Ubicacion de entrega</Text>
+              <Pressable onPress={toggleModalUpdate} style={{ margin: 5 }}>
+                <Icon name="close-circle-outline" size={30} color="#232323" />
+              </Pressable>
+            </View>
+            <View style={{ height: height - 100, width: "100%" }}>
+              <MapView
+                showsUserLocation={true}
+                showsMyLocationButton={true}
+                style={{ flex: 1 }}
+                initialRegion={showCurrentRegion}
+              >
+                <Marker
+                  title="Lugar de entrega"
+                  coordinate={{
+                    latitude: parseFloat(location_lat),
+                    longitude: parseFloat(location_long),
+                  }}
+                />
+              </MapView>
+            </View>
+          </View>
+        </ScrollView>
+      </Modal>
     </>
   );
 }
 const styles = StyleSheet.create({
+  button_text: {
+    color: COLORS.primary_buton_text,
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  cardItems: {
+    backgroundColor: "#fff",
+    borderRadius: 15,
+    width: "100%",
+    height: 60,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#eee",
+    shadowColor: "#000000",
+    shadowOffset: {
+      width: -7,
+      height: 7,
+    },
+  },
+  modalHeader: {
+    textAlign: "center",
+    color: "black",
+    fontWeight: "bold",
+    fontSize: 25,
+    marginBottom: 20,
+  },
   imagePcikedContainer: {
     justifyContent: "center",
     alignItems: "center",
