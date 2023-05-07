@@ -21,10 +21,21 @@ export default class Order {
   // Método para obtener una lista de pedidos por user_id
   async getOrdersFiltered(user_id) {
     const response = await fetch(
-      `https://cuido-middleware.000webhostapp.com/api/orders/where/${user_id}`
+      `https://cuido-middleware.000webhostapp.com/api/orders/noPaid/${user_id}`
     );
     const orders = await response.json();
-    console.log(orders);
+    console.log('from model',orders);
+    console.log('model')
+    return orders;
+  }
+
+
+  async getPaidOrdersFiltered(user_id){
+    const response = await fetch(
+      `https://cuido-middleware.000webhostapp.com/api/orders/paid/${user_id}`
+    );
+    const orders = await response.json();
+    console.log('from model',orders);
     return orders;
   }
 }

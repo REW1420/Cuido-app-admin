@@ -205,8 +205,45 @@ export default function StoreScreen() {
     clearData();
   }
 
-  //delete alert
+  //hook de la data inicial
+  const [productData, setProductData] = useState([]);
+  //hook de la data filtrada
+  const [filteredData, setFilteredData] = useState([]);
 
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      collection(database, "products"),
+      (querySnapshot) => {
+        const products = [];
+        querySnapshot.forEach((doc) => {
+          products.push({
+            id: doc.id,
+            data: doc.data(),
+          });
+        });
+        setProductData(products);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  //handle para actualizar los datos dependiendo de lo que se busca
+  //hooks for no found data
+  const [noFoundData, setNoFoundData] = useState(false);
+  const handleSearch = (text) => {
+    setSearchQuery(text);
+    const filtered = productData.filter((item) => {
+      const itemData = item.data.productName.toLowerCase();
+      const textData = text.toLowerCase();
+      return itemData.indexOf(textData) > -1;
+    });
+    setFilteredData(filtered);
+
+    if (filteredData.length === 0) {
+      setNoFoundData(true);
+    }
+  };
   return (
     <>
       <ScrollView style={{ backgroundColor: COLORS.primary_backgroud }}>
@@ -250,105 +287,210 @@ export default function StoreScreen() {
               containerStyle={styles.searchContainer}
               inputContainerStyle={styles.inputContainer}
               inputStyle={styles.input}
-              onChangeText={(text) => setSearchQuery(text)}
+              onChangeText={handleSearch}
               value={searchQuery}
-              onCancel={() => setSearchQuery("")}
             />
           </View>
         </View>
 
         <View>
-          {producData.map((item, i) => (
-            <View key={i} style={styles.productsContainer}>
-              <View>
-                <Image
-                  style={styles.image}
-                  source={{ uri: item.data.logoURL }}
-                />
-                <View style={styles.contentProducts}>
-                  <View style={styles.text}>
-                    <Text style={styles.name}>{item.data.productName}</Text>
-                    <Text style={styles.price}>
-                      ${item.data.price} Cantidad: {item.data.quantity}
-                    </Text>
-                  </View>
+          {filteredData.length > 0 ? (
+            filteredData.map((item, i) => (
+              <View key={i} style={styles.productsContainer}>
+                <View>
+                  <Image
+                    style={styles.image}
+                    source={{ uri: item.data.logoURL }}
+                  />
+                  <View style={styles.contentProducts}>
+                    <View style={styles.text}>
+                      <Text style={styles.name}>{item.data.productName}</Text>
+                      <Text style={styles.price}>
+                        ${item.data.price} Cantidad: {item.data.quantity}
+                      </Text>
+                    </View>
 
-                  <View style={{ flexDirection: "row" }}>
-                    <TouchableOpacity
-                      style={styles.icon}
-                      onPress={() => {
-                        Alert.alert(
-                          "¿Esta seguro de eliminar el producto?",
-                          "El documento se eliminara para siempre",
-                          [
-                            {
-                              text: "Cancelar",
-                              onPress: () => console.log("cancelado"),
-                              styles: "cancel",
-                            },
-                            {
-                              text: "Aceptar",
-                              onPress: () => {
-                                if (!item.id) {
-                                  console.log("id nulo");
-                                } else {
-                                  deleteDoc(
-                                    doc(database, "products", item.id)
-                                  ).catch((error) => {
-                                    console.log(
-                                      "Hubo un error al borrar el documento",
-                                      error
-                                    );
-                                  });
-                                  console.log("delete succesfull");
-                                  const databaseRef = ref(
-                                    storage,
-                                    "images/" + item.data.productName
-                                  );
-                                  deleteObject(databaseRef)
-                                    .then(() => {
-                                      console.log("image delete");
-                                    })
-                                    .catch((error) => {
+                    <View style={{ flexDirection: "row" }}>
+                      <TouchableOpacity
+                        style={styles.icon}
+                        onPress={() => {
+                          Alert.alert(
+                            "¿Esta seguro de eliminar el producto?",
+                            "El documento se eliminara para siempre",
+                            [
+                              {
+                                text: "Cancelar",
+                                onPress: () => console.log("cancelado"),
+                                styles: "cancel",
+                              },
+                              {
+                                text: "Aceptar",
+                                onPress: () => {
+                                  if (!item.id) {
+                                    console.log("id nulo");
+                                  } else {
+                                    deleteDoc(
+                                      doc(database, "products", item.id)
+                                    ).catch((error) => {
                                       console.log(
-                                        "hubo un error al borrar la imagen",
+                                        "Hubo un error al borrar el documento",
                                         error
                                       );
                                     });
-                                }
+                                    console.log("delete succesfull");
+                                    const databaseRef = ref(
+                                      storage,
+                                      "images/" + item.data.productName
+                                    );
+                                    deleteObject(databaseRef)
+                                      .then(() => {
+                                        console.log("image delete");
+                                      })
+                                      .catch((error) => {
+                                        console.log(
+                                          "hubo un error al borrar la imagen",
+                                          error
+                                        );
+                                      });
+                                  }
+                                },
                               },
-                            },
-                          ]
-                        );
-                      }}
-                    >
-                      <Icon name="trash-outline" size={25} color={"red"} />
-                    </TouchableOpacity>
+                            ]
+                          );
+                        }}
+                      >
+                        <Icon name="trash-outline" size={25} color={"red"} />
+                      </TouchableOpacity>
 
-                    <TouchableOpacity
-                      style={styles.icon}
-                      onPress={() => {
-                        console.log(item);
+                      <TouchableOpacity
+                        style={styles.icon}
+                        onPress={() => {
+                          console.log(item);
 
-                        setUpdateLogoURL(item.data.logoURL);
-                        setUpdateID(item.id);
-                        setUpdateProductName(item.data.productName);
-                        setUpdatePrice(item.data.price);
-                        console.log(updatePrice)
-                        setUpdateDescription(item.data.description);
-                        setUpdateQuantity(item.data.quantity);
-                        setNewImage(item.data.productName);
-                        toggleUpdateModal();
-                        clearData();
-                      }}
-                    >
-                      <Icon name="create-outline" size={25} color={"black"} />
-                    </TouchableOpacity>
+                          setUpdateLogoURL(item.data.logoURL);
+                          setUpdateID(item.id);
+                          setUpdateProductName(item.data.productName);
+                          setUpdatePrice(item.data.price);
+                          console.log(updatePrice);
+                          setUpdateDescription(item.data.description);
+                          setUpdateQuantity(item.data.quantity);
+                          setNewImage(item.data.productName);
+                          toggleUpdateModal();
+                          clearData();
+                        }}
+                      >
+                        <Icon name="create-outline" size={25} color={"black"} />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
               </View>
+            ))
+          ) : noFoundData === true ? (
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ fontSize: 20, textAlign: "center" }}>
+                No se encontraron resultados para la búsqueda realizada.
+              </Text>
             </View>
-          ))}
+          ) : (
+            producData.map((item, i) => (
+              <View key={i} style={styles.productsContainer}>
+                <View>
+                  <Image
+                    style={styles.image}
+                    source={{ uri: item.data.logoURL }}
+                  />
+                  <View style={styles.contentProducts}>
+                    <View style={styles.text}>
+                      <Text style={styles.name}>{item.data.productName}</Text>
+                      <Text style={styles.price}>
+                        ${item.data.price} Cantidad: {item.data.quantity}
+                      </Text>
+                    </View>
+
+                    <View style={{ flexDirection: "row" }}>
+                      <TouchableOpacity
+                        style={styles.icon}
+                        onPress={() => {
+                          Alert.alert(
+                            "¿Esta seguro de eliminar el producto?",
+                            "El documento se eliminara para siempre",
+                            [
+                              {
+                                text: "Cancelar",
+                                onPress: () => console.log("cancelado"),
+                                styles: "cancel",
+                              },
+                              {
+                                text: "Aceptar",
+                                onPress: () => {
+                                  if (!item.id) {
+                                    console.log("id nulo");
+                                  } else {
+                                    deleteDoc(
+                                      doc(database, "products", item.id)
+                                    ).catch((error) => {
+                                      console.log(
+                                        "Hubo un error al borrar el documento",
+                                        error
+                                      );
+                                    });
+                                    console.log("delete succesfull");
+                                    const databaseRef = ref(
+                                      storage,
+                                      "images/" + item.data.productName
+                                    );
+                                    deleteObject(databaseRef)
+                                      .then(() => {
+                                        console.log("image delete");
+                                      })
+                                      .catch((error) => {
+                                        console.log(
+                                          "hubo un error al borrar la imagen",
+                                          error
+                                        );
+                                      });
+                                  }
+                                },
+                              },
+                            ]
+                          );
+                        }}
+                      >
+                        <Icon name="trash-outline" size={25} color={"red"} />
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.icon}
+                        onPress={() => {
+                          console.log(item);
+
+                          setUpdateLogoURL(item.data.logoURL);
+                          setUpdateID(item.id);
+                          setUpdateProductName(item.data.productName);
+                          setUpdatePrice(item.data.price);
+                          console.log(updatePrice);
+                          setUpdateDescription(item.data.description);
+                          setUpdateQuantity(item.data.quantity);
+                          setNewImage(item.data.productName);
+                          toggleUpdateModal();
+                          clearData();
+                        }}
+                      >
+                        <Icon name="create-outline" size={25} color={"black"} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            ))
+          )}
         </View>
 
         <Toast ref={(ref) => Toast.setRef(ref)} />
@@ -451,7 +593,7 @@ export default function StoreScreen() {
                 <TextInput
                   style={styles.inputText}
                   onChangeText={(value) => handleText(value, setUpdatePrice)}
-                  value={"$"+updatePrice}
+                  value={"$" + updatePrice}
                   placeholder="Precio"
                   keyboardType="numeric"
                 />
@@ -472,8 +614,6 @@ export default function StoreScreen() {
                   value={updateDescription}
                   placeholder="Descripcion"
                 />
-
-              
               </View>
 
               <TouchableOpacity

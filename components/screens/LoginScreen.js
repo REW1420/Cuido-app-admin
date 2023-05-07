@@ -22,6 +22,7 @@ import Icon from "react-native-vector-icons/Ionicons";
 import UserModel from "../utils/MVC/UserModel";
 import global from "../utils/global";
 import { useTogglePasswordVisibility } from "../utils/useTogglePasswordVisibility";
+import { useEffect } from "react";
 const userModel = new UserModel();
 
 const { width, height } = Dimensions.get("screen");
@@ -105,6 +106,8 @@ export default function LoginScreen({ navigation }) {
   const handleText = (value, setState) => {
     setState(value);
   };
+
+ 
   return (
     <>
       <ScrollView style={styles.initB}>
@@ -138,6 +141,7 @@ export default function LoginScreen({ navigation }) {
                 style={styles.inputTxt}
                 placeholder="ejemplo@dominio.com"
                 placeholderTextColor={COLORS.input_text}
+                keyboardType='email-address'
                 onChangeText={(value) => handleText(value, setUser)}
                 value={user}
               />

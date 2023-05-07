@@ -13,6 +13,7 @@ import {
   Alert,
   Dimensions,
   Linking,
+  RefreshControl,
 } from "react-native";
 
 import COLORS from "../../config/COLORS";
@@ -84,8 +85,8 @@ export default function NewOrders({ navigation }) {
   const callClient = () => {
     Linking.openURL(`tel:${phoneNumber}`);
   };
-  const orderData = useNewOrderData();
-  console.log(orderData);
+  //const orderData = useNewOrderData();
+  //console.log(orderData);
 
   useEffect(() => {
     async function getLocation() {
@@ -107,9 +108,71 @@ export default function NewOrders({ navigation }) {
     latitudeDelta: 0.01,
     longitudeDelta: 0.01,
   };
+
+  //hook de la data inicial
+  const [newOrdersData, setNewOrdersData] = useState([]);
+  //hook de la data filtrada
+  const [filteredData, setFilteredData] = useState([]);
+  //query seacrh
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const ordersResponse = await orderModel.getOrdersFiltered(
+          global.user_id
+        );
+        setNewOrdersData(ordersResponse);
+        console.log("useEffect");
+        console.log(newOrdersData);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    fetchOrders(); // Llamamos a la función aquí
+  }, []);
+
+  console.log(newOrdersData);
+  //hooks for no found data
+  const [noFoundData, setNoFoundData] = useState(false);
+  //handle para actualizar los datos dependiendo de lo que se busca
+  const handleSearch = (text) => {
+    setQuery(text);
+    const filtered = newOrdersData.filter((item) => {
+      const itemData = item.id.toString();
+      const textData = text.toString();
+      return itemData.indexOf(textData) > -1;
+    });
+    setFilteredData(filtered);
+
+    if (filteredData.length === 0) {
+      //no data found
+      setNoFoundData(true);
+    }
+  };
+
+  //hoosk for refershing the view
+  const [refershing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const ordersResponse = await orderModel.getOrdersFiltered(global.user_id);
+      setNewOrdersData(ordersResponse);
+    } catch (error) {
+      console.error(error);
+    }
+    setRefreshing(false);
+  }, []);
+
   return (
     <>
-      <ScrollView style={{ backgroundColor: COLORS.primary_backgroud }}>
+      <ScrollView
+        style={{ backgroundColor: COLORS.primary_backgroud }}
+        refreshControl={
+          <RefreshControl refreshing={refershing} onRefresh={onRefresh} />
+        }
+      >
         <View style={styles.secondary_backgroud}>
           <View style={styles.containerTopLeft}>
             <Image
@@ -142,51 +205,112 @@ export default function NewOrders({ navigation }) {
               containerStyle={styles.searchContainer}
               inputContainerStyle={styles.inputContainer}
               inputStyle={styles.input}
+              onChangeText={handleSearch}
+              value={query}
             />
           </View>
         </View>
 
         <View>
-          {orderData.map((item, i) => {
-            if (item.delivered == 0) {
-              return (
-                <ListItem
-                  key={i}
-                  bottomDivider
-                  style={{
-                    backgroundColor: COLORS.secondary_backgroud,
-                    margin: 5,
-                  }}
-                  onPress={() => {
-                    setComment(item.comments);
-                    setIsDelivered(item.delivered);
-                    setTotalPrice(item.total_price);
-                    setPhoneNumber(item.user_phone_number);
-                    setProducts(item.products);
-                    setOrderID(item.id);
-                    setLocation_lat(item.location_lat);
-                    setLocation_long(item.location_long);
-                    setClienteName(item.client_name);
-                    toggleModal();
-                  }}
-                >
-                  <ListItem.Content>
-                    <ListItem.Title
-                      style={
-                        item.delivered === 0
-                          ? styles.textError
-                          : styles.textValid
-                      }
-                    >
-                      No entregado
-                    </ListItem.Title>
-                    <ListItem.Subtitle>Pedido ID : {item.id}</ListItem.Subtitle>
-                  </ListItem.Content>
-                  <ListItem.Chevron />
-                </ListItem>
-              );
-            }
-          })}
+          {filteredData.length > 0 ? (
+            filteredData.map((item, i) => {
+              if (item.delivered == 0) {
+                return (
+                  <ListItem
+                    key={i}
+                    bottomDivider
+                    style={{
+                      backgroundColor: COLORS.secondary_backgroud,
+                      margin: 5,
+                    }}
+                    onPress={() => {
+                      setComment(item.comments);
+                      setIsDelivered(item.delivered);
+                      setTotalPrice(item.total_price);
+                      setPhoneNumber(item.user_phone_number);
+                      setProducts(item.products);
+                      setOrderID(item.id);
+                      setLocation_lat(item.location_lat);
+                      setLocation_long(item.location_long);
+                      setClienteName(item.client_name);
+                      toggleModal();
+                    }}
+                  >
+                    <ListItem.Content>
+                      <ListItem.Title
+                        style={
+                          item.delivered === 0
+                            ? styles.textError
+                            : styles.textValid
+                        }
+                      >
+                        No entregado
+                      </ListItem.Title>
+                      <ListItem.Subtitle>
+                        Pedido ID : {item.id}
+                      </ListItem.Subtitle>
+                    </ListItem.Content>
+                    <ListItem.Chevron />
+                  </ListItem>
+                );
+              }
+            })
+          ) : noFoundData === true ? (
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ fontSize: 20, textAlign: "center" }}>
+                No se encontraron resultados para la búsqueda realizada.
+              </Text>
+            </View>
+          ) : (
+            newOrdersData.map((item, i) => {
+              if (item.delivered == 0) {
+                return (
+                  <ListItem
+                    key={i}
+                    bottomDivider
+                    style={{
+                      backgroundColor: COLORS.secondary_backgroud,
+                      margin: 5,
+                    }}
+                    onPress={() => {
+                      setComment(item.comments);
+                      setIsDelivered(item.delivered);
+                      setTotalPrice(item.total_price);
+                      setPhoneNumber(item.user_phone_number);
+                      setProducts(item.products);
+                      setOrderID(item.id);
+                      setLocation_lat(item.location_lat);
+                      setLocation_long(item.location_long);
+                      setClienteName(item.client_name);
+                      toggleModal();
+                    }}
+                  >
+                    <ListItem.Content>
+                      <ListItem.Title
+                        style={
+                          item.delivered === 0
+                            ? styles.textError
+                            : styles.textValid
+                        }
+                      >
+                        No entregado
+                      </ListItem.Title>
+                      <ListItem.Subtitle>
+                        Pedido ID : {item.id}
+                      </ListItem.Subtitle>
+                    </ListItem.Content>
+                    <ListItem.Chevron />
+                  </ListItem>
+                );
+              }
+            })
+          )}
         </View>
       </ScrollView>
 
@@ -194,9 +318,8 @@ export default function NewOrders({ navigation }) {
         isVisible={isModalVisible}
         onBackButtonPress={toggleModal}
         onBackdropPress={toggleModal}
-        
       >
-        <ScrollView  >
+        <ScrollView>
           <View
             style={{
               backgroundColor: "white",
@@ -304,10 +427,8 @@ export default function NewOrders({ navigation }) {
         isVisible={isModalUpdateVisible}
         onBackdropPress={toggleModalUpdate}
         onBackButtonPress={toggleModalUpdate}
-        
-        
       >
-        <ScrollView  >
+        <ScrollView>
           <View
             style={{
               backgroundColor: "white",

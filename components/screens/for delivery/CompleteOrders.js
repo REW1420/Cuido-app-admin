@@ -10,6 +10,7 @@ import {
   StyleSheet,
   Button,
   Alert,
+  RefreshControl,
 } from "react-native";
 
 import COLORS from "../../config/COLORS";
@@ -68,9 +69,70 @@ export default function CompleteOrders() {
     setIsModalVisible(!isModalVisible);
   };
 
+  //hook de la data inicial
+  const [completedOrdersData, setCompletedOrdersData] = useState([]);
+  //hook de la data filtrada
+  const [filteredData, setFilteredData] = useState([]);
+  //query seacrh
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const ordersResponse = await orderModel.getPaidOrdersFiltered(
+          global.user_id
+        );
+        setCompletedOrdersData(ordersResponse);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    fetchOrders();
+  }, []);
+  console.log(completedOrdersData);
+  //saber si se encontro datos
+  const [found, setFound] = useState(false);
+  //handle para actualizar los datos dependiendo de lo que se busca
+  const handleSearch = (text) => {
+    setQuery(text);
+    const filtered = completedOrdersData.filter((item) => {
+      const itemData = item.id.toString();
+      const textData = text.toString();
+      return itemData.indexOf(textData) > -1;
+    });
+    setFilteredData(filtered);
+
+    if (filtered.length === 0) {
+      // No se encontraron resultados para la búsqueda
+      setFound(true);
+    }
+  };
+
+  //hoosk for refershing the view
+  const [refershing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const ordersResponse = await orderModel.getPaidOrdersFiltered(
+        global.user_id
+      );
+      setCompletedOrdersData(ordersResponse);
+    } catch (error) {
+      console.error(error);
+    }
+    setRefreshing(false);
+  }, []);
+
   return (
     <>
-      <ScrollView style={{ backgroundColor: COLORS.primary_backgroud }}>
+      <ScrollView
+        style={{ backgroundColor: COLORS.primary_backgroud }}
+        refreshControl={
+          <RefreshControl refreshing={refershing} onRefresh={onRefresh} />
+        }
+      >
+        <Toast ref={Toast.setRef} />
         <View style={styles.secondary_backgroud}>
           <View style={styles.containerTopLeft}>
             <Image
@@ -87,41 +149,94 @@ export default function CompleteOrders() {
               containerStyle={styles.searchContainer}
               inputContainerStyle={styles.inputContainer}
               inputStyle={styles.input}
+              onChangeText={handleSearch}
+              value={query}
             />
           </View>
         </View>
 
         <View>
-          {oldOrderData.map((item, i) => {
-            if (item.delivered === 1 && item.paid === 1) {
-              return (
-                <ListItem
-                  key={i}
-                  bottomDivider
-                  style={{
-                    backgroundColor: COLORS.secondary_backgroud,
-                    margin: 5,
-                  }}
-                  onPress={() => {
-                    setTotalPrice(item.total_price);
-                    setProducts(item.products);
-                    setOrderID(item.id);
-                    setUpdate_at(item.order_updated_at);
-                    setCreated_at(item.created_at);
+          {filteredData.length > 0 ? (
+            filteredData.map((item, i) => {
+              if (item.delivered === 1 && item.paid === 1) {
+                return (
+                  <ListItem
+                    key={i}
+                    bottomDivider
+                    style={{
+                      backgroundColor: COLORS.secondary_backgroud,
+                      margin: 5,
+                    }}
+                    onPress={() => {
+                      setTotalPrice(item.total_price);
+                      setProducts(item.products);
+                      setOrderID(item.id);
+                      setUpdate_at(item.order_updated_at);
+                      setCreated_at(item.created_at);
 
-                    toggleModal();
-                  }}
-                >
-                  <ListItem.Content>
-                    <ListItem.Title style={styles.textValid}>
-                      Entregado {item.order_id}
-                    </ListItem.Title>
-                  </ListItem.Content>
-                  <ListItem.Chevron />
-                </ListItem>
-              );
-            }
-          })}
+                      toggleModal();
+                    }}
+                  >
+                    <ListItem.Content>
+                      <ListItem.Title style={styles.textValid}>
+                        Entregado {item.order_id}
+                      </ListItem.Title>
+                      <ListItem.Subtitle>
+                        Pedido ID : {item.id}
+                      </ListItem.Subtitle>
+                    </ListItem.Content>
+                    <ListItem.Chevron />
+                  </ListItem>
+                );
+              }
+            })
+          ) : found === true ? (
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ fontSize: 20, textAlign: "center" }}>
+                No se encontraron resultados para la búsqueda realizada.
+              </Text>
+            </View>
+          ) : (
+            completedOrdersData.map((item, i) => {
+              if (item.delivered === 1 && item.paid === 1) {
+                return (
+                  <ListItem
+                    key={i}
+                    bottomDivider
+                    style={{
+                      backgroundColor: COLORS.secondary_backgroud,
+                      margin: 5,
+                    }}
+                    onPress={() => {
+                      setTotalPrice(item.total_price);
+                      setProducts(item.products);
+                      setOrderID(item.id);
+                      setUpdate_at(item.order_updated_at);
+                      setCreated_at(item.created_at);
+
+                      toggleModal();
+                    }}
+                  >
+                    <ListItem.Content>
+                      <ListItem.Title style={styles.textValid}>
+                        Entregado {item.order_id}
+                      </ListItem.Title>
+                      <ListItem.Subtitle>
+                        Pedido ID : {item.id}
+                      </ListItem.Subtitle>
+                    </ListItem.Content>
+                    <ListItem.Chevron />
+                  </ListItem>
+                );
+              }
+            })
+          )}
         </View>
       </ScrollView>
 
