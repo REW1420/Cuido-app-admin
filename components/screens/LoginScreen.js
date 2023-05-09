@@ -83,6 +83,7 @@ export default function LoginScreen({ navigation }) {
               .then((userCredential) => {
                 global.user_id = userCredential.user.uid;
                 console.log("user id", global.user_id);
+                global.email = userCredential.user.email;
                 navigation.navigate("delivery-nav");
               })
               .catch((e) => {

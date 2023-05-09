@@ -31,10 +31,25 @@ import * as Location from "expo-location";
 import Order from "../../utils/MVC/Model";
 import global from "../../utils/global";
 import MapView, { Marker } from "react-native-maps";
+import LocalUserModel from "../../utils/MVC/LocalUserModel";
+import LocalOrderModel from "../../utils/MVC/LocalOrdersModel";
+import MapViewDirections from "react-native-maps-directions";
+import { useTogglePasswordVisibility } from "../../utils/useTogglePasswordVisibility";
+import { auth } from "../../utils/Firebase";
+import {
+  signInWithEmailAndPassword,
+  updateEmail,
+  signOut,
+} from "firebase/auth";
 
 const height = Dimensions.get("screen").height;
 //intance the model to create an object
 const orderModel = new Order();
+const localOrderModel = new LocalOrderModel();
+const localUserModel = new LocalUserModel();
+
+//GOOGLE API KEY
+const GOOGLE_API_KEY = "AIzaSyCU0Y0u6wlVZP_Wa0hcfyJi9ag7PDFLpIo";
 
 function useNewOrderData() {
   const [data, setData] = useState([]);
@@ -42,7 +57,7 @@ function useNewOrderData() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const ordersResponse = await orderModel.getOrdersFiltered(
+        const ordersResponse = await localOrderModel.getOrdersFiltered(
           global.user_id
         );
         setData(ordersResponse);
@@ -71,6 +86,16 @@ export default function NewOrders({ navigation }) {
   const [isPaid, setIsPaid] = useState(false);
   const [isDelivered, setIsDelivered] = useState(false);
   const [clienteName, setClienteName] = useState("");
+  //destination hook
+  const destination = {
+    latitude: parseFloat(location_lat),
+    longitude: parseFloat(location_long),
+  };
+
+  //google maps linking
+  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${parseFloat(
+    location_lat
+  )},${parseFloat(location_long)}`;
 
   //modal hooks boolean
   const [isModalVisible, seetIsModalVisible] = useState(false);
@@ -88,6 +113,17 @@ export default function NewOrders({ navigation }) {
   //const orderData = useNewOrderData();
   //console.log(orderData);
 
+  //save the order id in hooks
+  const [id, setID] = useState(0);
+
+  const handleUpdateOrder = async () => {
+    console.log(id);
+    const status = {
+      paid: true,
+      delivered: true,
+    };
+    await localOrderModel.updateOrderStatus(id, status).then(() => toggleModal);
+  };
   useEffect(() => {
     async function getLocation() {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -115,11 +151,12 @@ export default function NewOrders({ navigation }) {
   const [filteredData, setFilteredData] = useState([]);
   //query seacrh
   const [query, setQuery] = useState("");
+  const [userData, setUserData] = useState([]);
 
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const ordersResponse = await orderModel.getOrdersFiltered(
+        const ordersResponse = await localOrderModel.getOrdersFiltered(
           global.user_id
         );
         setNewOrdersData(ordersResponse);
@@ -129,7 +166,11 @@ export default function NewOrders({ navigation }) {
         console.error(error);
       }
     };
-
+    async function getUserData() {
+      const userData = await localUserModel.getUserDataByID(global.user_id);
+      setUserData(userData);
+    }
+    getUserData();
     fetchOrders(); // Llamamos a la función aquí
   }, []);
 
@@ -157,14 +198,142 @@ export default function NewOrders({ navigation }) {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      const ordersResponse = await orderModel.getOrdersFiltered(global.user_id);
+      const ordersResponse = await localOrderModel.getOrdersFiltered(
+        global.user_id
+      );
+      const userData = await localUserModel.getUserDataByID(global.user_id);
+      setUserData(userData);
       setNewOrdersData(ordersResponse);
     } catch (error) {
       console.error(error);
     }
+
     setRefreshing(false);
   }, []);
 
+  const [resetPassModalV, setResetPassModalV] = useState(false);
+
+  const resetPassModal = () => setResetPassModalV(!resetPassModalV);
+
+  //change email
+  const [changeEmailVisible, setChangeEmailVisible] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const toggleChangeEmailModal = () =>
+    setChangeEmailVisible(!changeEmailVisible);
+  //funtion to change email address
+  const handleChangeEmail = async () => {
+    await signInWithEmailAndPassword(auth, global.email, password).then(
+      (userCredential) => {
+        updateEmail(userCredential.user, newEmail)
+          .then(userCredential)
+          .then(() => {
+            const newUserData = {
+              email: newEmail,
+            };
+            localUserModel
+              .updateUserEmail(global.user_id, newUserData)
+              .then(() => {
+                showGoHomeAlert();
+              });
+          });
+      }
+    );
+  };
+  //hook for settings account modal visibility
+  const [isSettingModalVisible, setIsSettingModalVisible] = useState(false);
+
+  const toggleSettingsModal = () => {
+    setIsSettingModalVisible(!isSettingModalVisible);
+    userData.forEach((item, i) => {
+      setNewLastName(item.second_name);
+      setNewNade(item.first_name);
+      setNewPhoneNumber(item.phone_number);
+    });
+  };
+  //hook for email
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const showGoHomeAlert = () =>
+    Alert.alert(
+      "Se han actualizado los datos correctamente",
+      "Vuelva a iniciar sesion",
+      [
+        {
+          text: "Confirmar",
+          onPress: () => {
+            handleSingOut();
+          },
+        },
+      ]
+    );
+  const [inalivEmail, setInvalidEmail] = useState(false);
+  const [userFound, userNotFound] = useState(false);
+  const resetPass = async () => {
+    if (emailRegex.test(email) === false) {
+      setInvalidEmail(true);
+    } else {
+      setInvalidEmail(false);
+      sendPasswordResetEmail(auth, email)
+        .then((result) => {
+          console.log(result);
+        })
+        .catch((e) => {
+          userNotFound(true);
+          console.log(e.code, e.message);
+        });
+    }
+  };
+
+  const { passwordVisibility, rightIcon, handlePasswordVisibility } =
+    useTogglePasswordVisibility();
+
+  //new user data hooks
+  const [newName, setNewNade] = useState("");
+  const [newLastName, setNewLastName] = useState("");
+  const [newPhoneNumber, setNewPhoneNumber] = useState(0);
+
+  const updateUserData = async () => {
+    const newUserDataL = {
+      first_name: newName,
+      second_name: newLastName,
+      phone_number: newPhoneNumber,
+    };
+    await localUserModel
+      .updateUserData(global.user_id, newUserDataL)
+      .then(() => {
+        toggleSettingsModal();
+        showUpdateToast();
+      });
+  };
+
+  const showUpdateToast = () => {
+    Toast.show({
+      type: "success",
+      text1: "Datos actualizados correctamente",
+      visibilityTime: 1000,
+      position: "top",
+    });
+  };
+  const handleChange = (event) => {
+    setNewPhoneNumber(event.target.value);
+    setNewNade(event.target.value);
+    setNewLastName(event.target.value);
+    console.log(newName);
+  };
+  //handle text form
+  const handleText = (value, setState) => {
+    setState(value);
+  };
+  //handle event for fetch the orders data
+  const handleSingOut = () => {
+    signOut(auth)
+      .then(() => {
+        console.log("sing out");
+        navigation.navigate("login");
+      })
+      .catch((e) => console.log(e));
+  };
   return (
     <>
       <ScrollView
@@ -181,16 +350,25 @@ export default function NewOrders({ navigation }) {
             />
           </View>
 
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, marginHorizontal: 15, flexDirection: "row" }}>
             <TouchableOpacity
-              onPress={() => {
-                navigation.navigate("login");
-              }}
+              onPress={toggleSettingsModal}
               style={{
                 flex: 1,
                 justifyContent: "center",
                 alignItems: "flex-end",
-                margin: 15,
+                marginHorizontal: 10,
+              }}
+            >
+              <Icon name="settings-outline" size={35} color={"gray"} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleSingOut}
+              style={{
+                justifyContent: "center",
+                alignItems: "flex-end",
+                marginHorizontal: 10,
               }}
             >
               <Icon name="log-out-outline" size={35} color={"red"} />
@@ -203,7 +381,11 @@ export default function NewOrders({ navigation }) {
             <SearchBar
               placeholder="Buscar"
               containerStyle={styles.searchContainer}
-              inputContainerStyle={styles.inputContainer}
+              inputContainerStyle={{
+                backgroundColor: "white",
+                borderRadius: 20,
+                height: 40,
+              }}
               inputStyle={styles.input}
               onChangeText={handleSearch}
               value={query}
@@ -233,6 +415,7 @@ export default function NewOrders({ navigation }) {
                       setLocation_lat(item.location_lat);
                       setLocation_long(item.location_long);
                       setClienteName(item.client_name);
+                      setID(item.id);
                       toggleModal();
                     }}
                   >
@@ -288,6 +471,7 @@ export default function NewOrders({ navigation }) {
                       setLocation_lat(item.location_lat);
                       setLocation_long(item.location_long);
                       setClienteName(item.client_name);
+                      setID(item.id);
                       toggleModal();
                     }}
                   >
@@ -390,11 +574,13 @@ export default function NewOrders({ navigation }) {
               </Pressable>
             </View>
             <View style={{}}>
-              <TouchableOpacity style={styles.button} onPress={toggleModal}>
-                <Text style={styles.button_text}>Marcar como pagado</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.button} onPress={toggleModal}>
-                <Text style={styles.button_text}>Marcar como entregado</Text>
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleUpdateOrder}
+              >
+                <Text style={styles.button_text}>
+                  Marcar como pagado y entregado
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -438,12 +624,30 @@ export default function NewOrders({ navigation }) {
               justifyContent: "center",
             }}
           >
-            <View style={{ flexDirection: "row", margin: 5 }}>
-              <Text style={styles.modalHeader}>Ubicacion de entrega</Text>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", margin: 5 }}
+            >
+              <Pressable
+                onPress={() => Linking.openURL(googleMapsUrl)}
+                style={{ margin: 5 }}
+              >
+                <Icon name="navigate-outline" size={30} color="#232323" />
+              </Pressable>
+              <Text
+                style={{
+                  textAlign: "center",
+                  color: "black",
+                  fontWeight: "bold",
+                  fontSize: 25,
+                }}
+              >
+                Ubicacion de entrega
+              </Text>
               <Pressable onPress={toggleModalUpdate} style={{ margin: 5 }}>
                 <Icon name="close-circle-outline" size={30} color="#232323" />
               </Pressable>
             </View>
+
             <View style={{ height: height - 100, width: "100%" }}>
               <MapView
                 showsUserLocation={true}
@@ -458,15 +662,191 @@ export default function NewOrders({ navigation }) {
                     longitude: parseFloat(location_long),
                   }}
                 />
+                <MapViewDirections
+                  origin={currentLocation}
+                  destination={destination}
+                  apikey={GOOGLE_API_KEY}
+                  strokeWidth={4}
+                />
               </MapView>
             </View>
           </View>
         </ScrollView>
       </Modal>
+
+      <Modal
+        isVisible={isSettingModalVisible}
+        onBackButtonPress={toggleSettingsModal}
+        onBackdropPress={toggleSettingsModal}
+      >
+        <View style={styles.modalBackdround}>
+          <Text style={styles.modalHeader}>Configuracion de cuenta</Text>
+
+          <View style={{ width: "100%" }}>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.inputTxt}
+                placeholder="Ingrese su nombre"
+                autoCapitalize="none"
+                placeholderTextColor={COLORS.input_text}
+                onChangeText={(value) => handleText(value, setNewNade)}
+                value={newName}
+              />
+              <TextInput
+                style={styles.inputTxt}
+                placeholder="Ingrese su apellido"
+                autoCapitalize="none"
+                placeholderTextColor={COLORS.input_text}
+                onChangeText={(value) => handleText(value, setNewLastName)}
+                value={newLastName}
+              />
+              <TextInput
+                style={styles.inputTxt}
+                placeholder="Ingrese su numero de telefono"
+                autoCapitalize="none"
+                placeholderTextColor={COLORS.input_text}
+                keyboardType="numeric"
+                onChangeText={(value) => handleText(value, setNewPhoneNumber)}
+                value={newPhoneNumber}
+              />
+              <TouchableOpacity style={styles.button} onPress={updateUserData}>
+                <Text style={styles.button_text}>Actualizar datos</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <View style={{ flexDirection: "row" }}>
+            <TouchableOpacity style={styles.button} onPress={resetPassModal}>
+              <Text style={styles.button_text}>Cambiar contraseña</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={toggleChangeEmailModal}
+            >
+              <Text style={styles.button_text}>Cambiar correo</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal isVisible={resetPassModalV} onBackdropPress={resetPassModal}>
+        <View style={styles.modalBackdround}>
+          <Text style={styles.modalHeader}>Cambiar contraseña</Text>
+          {inalivEmail === true ? <Text>Ingrese un correo valido</Text> : ""}
+          {userFound === true ? (
+            <Text>
+              No se encontro cuenta asociada al correo, verifique que su correo
+              este bien escrito
+            </Text>
+          ) : (
+            ""
+          )}
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.inputTxt}
+              keyboardType="email-address"
+              placeholder="Ingrese su correo"
+              autoCapitalize="none"
+              placeholderTextColor={COLORS.input_text}
+              onChangeText={(text) => {
+                setEmail(text);
+              }}
+              value={email}
+            />
+          </View>
+          <View style={{ flexDirection: "row" }}>
+            <TouchableOpacity style={styles.button} onPress={resetPassModal}>
+              <Text style={styles.button_text}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={resetPass}>
+              <Text style={styles.button_text}>Cambiar contraseña</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        isVisible={changeEmailVisible}
+        onBackdropPress={toggleChangeEmailModal}
+      >
+        <View style={styles.modalBackdround}>
+          <Text style={styles.modalHeader}>Cambiar correo</Text>
+          {inalivEmail === true ? <Text>Ingrese un correo valido</Text> : ""}
+          {userFound === true ? (
+            <Text>
+              No se encontro cuenta asociada al correo, verifique que su correo
+              este bien escrito
+            </Text>
+          ) : (
+            ""
+          )}
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.inputTxt}
+              keyboardType="email-address"
+              placeholder="Ingrese su nuevo correo"
+              autoCapitalize="none"
+              placeholderTextColor={COLORS.input_text}
+              onChangeText={(text) => {
+                setNewEmail(text);
+              }}
+              value={newEmail}
+            />
+          </View>
+          <View style={styles.inputContainer2}>
+            <TextInput
+              style={styles.inputTxt}
+              autoCapitalize="none"
+              placeholder="Ingrese su contraseña actual"
+              autoCorrect={false}
+              secureTextEntry={passwordVisibility}
+              placeholderTextColor={COLORS.input_text}
+              onChangeText={(text) => {
+                setPassword(text);
+              }}
+            />
+            <Pressable onPress={handlePasswordVisibility}>
+              <Icon name={rightIcon} size={22} color="#232323" />
+            </Pressable>
+          </View>
+          <View style={{ flexDirection: "row" }}>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={toggleChangeEmailModal}
+            >
+              <Text style={styles.button_text}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={handleChangeEmail}>
+              <Text style={styles.button_text}>Cambiar correo</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }
 const styles = StyleSheet.create({
+  inputTxt: {
+    backgroundColor: COLORS.input_color,
+    padding: 15,
+    margin: 15,
+    borderRadius: 50,
+    borderWidth: 1.5,
+    width: "80%",
+    color: COLORS.input_text,
+    textAlign: "center",
+    borderColor: COLORS.input_color,
+    alignSelf: "center",
+  },
+  isNotPaid: {
+    margin: 5,
+    fontWeight: "bold",
+    color: "red",
+  },
+  isPaid: {
+    margin: 5,
+    fontWeight: "bold",
+    color: "green",
+  },
   button_text: {
     color: COLORS.primary_buton_text,
     fontWeight: "bold",
@@ -540,7 +920,7 @@ const styles = StyleSheet.create({
     bottom: SPACING * 3,
   },
 
-  inputContainer: {
+  inputContainer2: {
     width: "100%",
 
     justifyContent: "center",
@@ -563,11 +943,7 @@ const styles = StyleSheet.create({
     borderTopColor: "transparent",
     width: "100%",
   },
-  inputContainer: {
-    backgroundColor: "white",
-    borderRadius: 20,
-    height: 40,
-  },
+
   input: {
     color: "black",
   },
@@ -655,18 +1031,7 @@ const styles = StyleSheet.create({
     height: 60,
     width: 300,
   },
-  inputText: {
-    backgroundColor: COLORS.input_color,
-    padding: 15,
-    margin: 10,
-    borderRadius: 50,
-    borderWidth: 1.5,
-    width: "80%",
-    color: COLORS.input_text,
-    textAlign: "center",
-    borderColor: COLORS.input_color,
-    alignSelf: "center",
-  },
+
   textError: {
     color: "red",
   },

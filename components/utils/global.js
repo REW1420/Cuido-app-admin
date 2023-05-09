@@ -1,1 +1,2 @@
-global.user_id = '';
+global.user_id = "";
+global.email;

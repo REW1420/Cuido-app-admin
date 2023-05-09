@@ -27,9 +27,12 @@ import * as ImagePicker from "expo-image-picker";
 import Order from "../../utils/MVC/Model";
 import global from "../../utils/global";
 import moment from "moment/moment";
+import LocalOrderModel from "../../utils/MVC/LocalOrdersModel";
+
 
 //intance the model to create an object
 const orderModel = new Order();
+const localOrderModel = new LocalOrderModel();
 
 function useNewOrderData() {
   const [data, setData] = useState([]);
@@ -37,7 +40,7 @@ function useNewOrderData() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const ordersResponse = await orderModel.getOrdersFiltered(
+        const ordersResponse = await localOrderModel.getOrdersFiltered(
           global.user_id
         );
         setData(ordersResponse);
@@ -69,6 +72,8 @@ export default function CompleteOrders() {
     setIsModalVisible(!isModalVisible);
   };
 
+ 
+
   //hook de la data inicial
   const [completedOrdersData, setCompletedOrdersData] = useState([]);
   //hook de la data filtrada
@@ -79,7 +84,7 @@ export default function CompleteOrders() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const ordersResponse = await orderModel.getPaidOrdersFiltered(
+        const ordersResponse = await localOrderModel.getPaidOrdersFiltered(
           global.user_id
         );
         setCompletedOrdersData(ordersResponse);
@@ -114,7 +119,7 @@ export default function CompleteOrders() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      const ordersResponse = await orderModel.getPaidOrdersFiltered(
+      const ordersResponse = await localOrderModel.getPaidOrdersFiltered(
         global.user_id
       );
       setCompletedOrdersData(ordersResponse);
